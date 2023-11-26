@@ -16,15 +16,16 @@ class Net(nn.Module):
 
         # First convolutional layer: 1 input channel, 32 output channels, 3x3 kernel
         # self.conv1 = nn.Conv2d(3, 64, 3)
-        self.conv1 = nn.Conv2d(1, 64, 3)
+        self.conv1 = nn.Conv2d(1, 64, 3, padding=1)
 
         self.pool = nn.MaxPool2d(2, 2)  # Max-pooling layer with 2x2 window
+        self.pool3 = nn.MaxPool2d(3, 3)  # Max-pooling layer with 3x3 window
 
         # Second convolutional layer: 32 input channels, 64 output channels, 3x3 kernel
-        self.conv2 = nn.Conv2d(64, 128, 3)
+        self.conv2 = nn.Conv2d(64, 128, 3, padding=1)
 
-        self.conv3 = nn.Conv2d(128, 256, 3)
-        self.conv4 = nn.Conv2d(256, 256, 3)
+        self.conv3 = nn.Conv2d(128, 256, 3, padding=1)
+        self.conv4 = nn.Conv2d(256, 256, 3, padding=1)
 
         # First fully connected (linear) layer: 64 * 5 * 5 input features, 128 output features
         self.fc1 = nn.Linear(256, 1024)
@@ -33,22 +34,30 @@ class Net(nn.Module):
 
     def forward(self, x):
         x = self.pool(torch.relu(self.conv1(x)))  # Apply first convolution, ReLU, and max-pooling
+        print("Shape after first convolution", x.shape)
         # Size is now W_out = (W_in - K + 2*P) / S + 1
-        # Size is now W_out = (28 - 3 + 2*0) / 1 + 1 = 26
-        # Max pool 2*2 => Size will be 13*13
-        x = self.pool(torch.relu(self.conv2(x)))  # Apply second convolution, ReLU, and max-pooling
-        # Size is now W_out = (13 - 3 + 2*0) / 1 + 1 = 11
-        # Max pool 2*2 => Size will be 5*5
-        x = torch.relu(self.conv3(x))  # Apply third convolution, ReLU
-        # Size is now W_out = (5 - 3 + 2*0) / 1 + 1 = 3
+        # Size is now W_out = (28 - 3 + 2*1) / 1 + 1 = 28
+        # Max pool 2*2 => Size will be 14*14
+        x = self.pool(torch.relu(self.conv2(x)))  # Appyly second convolution, ReLU, and max-pooling
+        print("Shape after second convolution", x.shape)
+        # Size is now W_out = (14 - 3 + 2*1) / 1 + 1 = 14
+        # Max pool 2*2 => Size will be 7*7
+        x = self.pool(torch.relu(self.conv3(x)))  # Apply third convolution, ReLU
+        print("Shape after third convolution", x.shape)
+        # Size is now W_out = (7 - 3 + 2*1) / 1 + 1 = 7
         # x = self.pool(torch.relu(self.conv4(x)))  # Apply fourth convolution, ReLU, and max-pooling
-        x = torch.relu(self.conv4(x))  # Apply fourth convolution, ReLU, and max-pooling
-        # Size is now W_out = (3 - 3 + 2*0) / 1 + 1 = 1
+        x = self.pool(torch.relu(self.conv4(x)))  # Apply fourth convolution, ReLU, and max-pooling
+        print("Shape after fourth convolution", x.shape)
+        # Size is now W_out = (7 - 3 + 2*1) / 1 + 1 = 7
+        # Max pool 2*2 => Size will be 6*6
         # What to be done for pooling
         x = x.view(-1, 256 * 1 * 1)  # Reshape for fully connected layers
+        print("Shape after reshape before linear layers ", x.shape)
         # x = nn.BatchNorm2d(64 * 5 * 5)
         x = torch.relu(self.fc1(x))  # Apply first fully connected layer and ReLU
+        print("Shape after reshape before first linear layes ", x.shape)
         x = self.fc2(x)  # Apply second fully connected layer
+        print("Shape after reshape before second linear layes ", x.shape)
         # Apply softmax
         x = nn.Softmax(dim=1)(x)  # Apply softmax
 
@@ -122,7 +131,7 @@ def trainNetwork(epochs=5):
             # print("Output from trainloder, for inputs", inputs.shape)
             optimizer.zero_grad()
             outputs = net(inputs)
-            # print("Output Shape", outputs.shape)
+            print("Output Shape", outputs.shape)
             # print(outputs)
             loss = criterion(outputs, labels)
             loss.backward()
@@ -240,11 +249,15 @@ if __name__ == "__main__":
 # import matplotlib.pyplot as plt
 #
 # plt.imshow(features.reshape(28, 28), cmap='gray')
+
 """
 Document of the work done
 Target Accuracy : 97%
 5 Epochs of training = Accuracy is 87.8%
 10 Epochs of training = Accuracy is 89.52%
 
+
+Open Item : work with padding 1, size is changed but it is not working
+batch size is coming as 256 when it should be 64
+
 """
-# plt.show(

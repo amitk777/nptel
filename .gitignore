@@ -10,3 +10,15 @@
 .ipynb_checkpoints/Test-checkpoint.py
 .idea/nptel.iml
 .idea/misc.xml
+fmnist/fashion-mnist_dev.csv
+fmnist/fashion-mnist_test.csv
+fmnist/fashion-mnist_train.csv
+fmnist/t10k-images-idx3-ubyte
+fmnist/t10k-labels-idx1-ubyte
+fmnist/train-images-idx3-ubyte
+fmnist/train-labels-idx1-ubyte
+expt.log
+test.py
+data.py
+__pycache__/amitUtils.cpython-311.pyc
+.tmux.conf
