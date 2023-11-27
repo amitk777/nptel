@@ -59,6 +59,7 @@ class Network:
             raise ValueError("Input size does not match")
         for i in range(len(self.layers)):
             x = self.layers[i].forward(x)
+            print("Shape of activations", x.shape)
         return x
 
     def mse(self, output, label):
@@ -70,11 +71,7 @@ class Network:
 
     # We will write three methods, develop, train and test
     def develop(self, epochs):
-        # Create some random test data and label
-        # x = np.random.randn(8, 1)
-        # y = np.random.randn(10, 1)
         x, y = utils.load_fmnist_data("dev")
-
         # Forward pass
         for _ in range(epochs):
             output = self.forward(x)
@@ -93,7 +90,7 @@ class Network:
         # This is the error of the last layer, set it in the last layer
         self.layers[-1].delta = output_error
 
-        print("Output error", output_error)
+        # print("Output error", output_error)
 
         for i in reversed(range(len(self.layers))):
             print("Layers weights", self.layers[i].weights.shape)
@@ -132,8 +129,10 @@ class Network:
             raise ValueError("Loss function not supported")
 
     def getActivationGrad(self, activation):
+        print("Data type of activation", type(activation))
         if self.activation_type == "sigmoid":
-            return activation * (1 - activation)
+            # return activation * (1 - activation)
+            return utils.sigmoid_grad(activation)
         else:
             raise ValueError("Activation type not supported")
 
@@ -150,7 +149,7 @@ class Layer:
         # provide a seed so that same random numbers are generated on each run
         # Store the z value and activation
         self.z = None
-        self.activations = np.array([self.biases.shape])
+        self.activations = np.array([self.biases.shape], dtype=np.float64)
         # Bias grad at each neuron as per the book
         self.bias_grad = np.array([self.biases.shape])
         # Weights grad at each neuron
@@ -173,6 +172,7 @@ class Layer:
 
     # activation - sigmoid function, since our outputs are between 0 and 1
     def sigmoid(self, x):
+        # x = np.clip(x, -500, 500)  # Clipping values to prevent overflow
         return 1 / (1 + np.exp(-x))
 
     # as per the book
@@ -240,7 +240,6 @@ def main():
     )
 
     net.develop(args.epochs)
-    utils.testFunction("amit")
 
 
 def list_int(values):
