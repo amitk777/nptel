@@ -54,43 +54,73 @@ class Network:
         # Construct weight matrices and bias for each layer starting backward
 
     def forward(self, x):
-        # throw Value error if the size of x does not match the input size
-        if x.shape[0] != self.input_size:
-            raise ValueError("Input size does not match")
+        # Now shape of x , (784, batch_size), x is now a collection of column vectors
         for i in range(len(self.layers)):
             x = self.layers[i].forward(x)
             print("Shape of activations", x.shape)
         return x
 
     def mse(self, output, label):
-        return np.mean((label - output) ** 2)
+        # print("Inside MSE : Output shape", output.shape, "label shape", label.shape)
+        # return np.mean((label - output) ** 2)
+        return np.sum((label - output) ** 2)
 
     def activation(self, x):
         # Sigmoid activation
         return 1 / (1 + np.exp(-x))
 
     # We will write three methods, develop, train and test
-    def develop(self, epochs):
+    def act(self, epochs):
         x, y = utils.load_fmnist_data("dev")
-        # Forward pass
-        for _ in range(epochs):
-            output = self.forward(x)
-            self.backward(x, output, y)
-            print("MSE", self.mse(output, y))
+        print("Pre Batch shape", x.shape, y.shape)
+        # X Shape (N, 784) Y Shape (N, 10)
+        # N = 100,for development, 100 rows and 784 columns, X is collection of row vectors of 28*28 = 784
+        # Break the data into batches of batch_size
+        batch_size = self.batch_size
+        num_batches = len(x) // batch_size
+        remaining_samples = len(x) % batch_size
+        for j in range(epochs):
+            squared_error = 0
+            for i in range(num_batches):
+                batch_x = x[i * batch_size : (i + 1) * batch_size]
+                batch_y = y[i * batch_size : (i + 1) * batch_size]
+                print("Batch shape", batch_x.shape, batch_y.shape)
+                # Select rows equal to the batch size from x and y, so batch shape (batch_size, 784), batch is still row vectors
+                # Process the batch here, and do a transpose
+                output = self.forward(batch_x.T)
+                self.backward(batch_x.T, output, batch_y.T)
+                # print("Output shape,net output shape before collecting :", output.shape, net_output.shape)
+                squared_error = squared_error + self.mse(output, batch_y.T)
+
+            if remaining_samples > 0:
+                batch_x = x[num_batches * batch_size :]
+                batch_y = y[num_batches * batch_size :]
+                print("Batch shape", batch_x.shape, batch_y.shape)
+                # Process the remaining samples here
+                output = self.forward(batch_x.T)
+                self.backward(batch_x.T, output, batch_y.T)
+                squared_error = squared_error + self.mse(output, batch_y.T)
+            # Print output and label shapes
+            print("Output shape:", output.shape)
+            print("Label shape:", y.shape)
+
+            # print("Squared Error :", squared_error / batch_size, "Epoch :", j)
+            print("Squared Error :", squared_error, "Epoch :", j)
 
     def backward(self, input, output, label):
-        # Now we need to write code for 4 equations
-        # Error at the output layer
-        # Error at each of the hidden layers
-        # grad of weights for each layer
-        # grad of bias for each layer
+        # Now , output size is (10,batch_size)
+        # Now , label size is (10,batch_size)
 
         # Equation 1 : Output error at the last layer , grad of loss function with respect to activation multiplied by derivative of activation function
+        # Loss Grad is just a element wise difference so it is (10,batch_size)
+        # Activation Grad is (10,batch_size)
+        # Below is element wise multiplication so output error is (10,batch_size)
         output_error = self.getLossgrad(output, label) * self.getActivationGrad(output)
+        # Take average output error
+        # output_error = np.mean(output_error, axis=1, keepdims=True)
+        print("Output error shape", output_error.shape)
         # This is the error of the last layer, set it in the last layer
         self.layers[-1].delta = output_error
-
-        # print("Output error", output_error)
 
         for i in reversed(range(len(self.layers))):
             print("Layers weights", self.layers[i].weights.shape)
@@ -104,14 +134,23 @@ class Network:
                     self.layers[i + 1].delta
                 ) * self.getActivationGrad(self.layers[i].z)
 
+                print(
+                    "All shapes in order of the appearance",
+                    self.layers[i + 1].weights.T.shape,
+                    self.layers[i + 1].delta.shape,
+                    self.getActivationGrad(self.layers[i].z).shape,
+                )
+
             self.layers[i].bias_grad = self.layers[i].delta
 
             # Equation 3 : Gradient of weights for each layer, dot product with bias_grad because it is equal to the del error in this layer
             # dot product of previous layer activations and current layer del error
             if i == 0:
                 self.layers[i].weights_grad = np.dot(self.layers[i].delta, input.T)
+                print("Inside weights grad first layer ", self.layers[i].delta.shape, input.T.shape)
             else:
                 self.layers[i].weights_grad = np.dot(self.layers[i].delta, self.layers[i - 1].activations.T)
+                print("Inside weights grad ", self.layers[i].delta.shape, self.layers[i - 1].activations.T.shape)
 
             print("Weights grad", self.layers[i].weights_grad.shape)
             print("Previous Layer's Activations shape", self.layers[i - 1].activations.T.shape)
@@ -129,7 +168,6 @@ class Network:
             raise ValueError("Loss function not supported")
 
     def getActivationGrad(self, activation):
-        print("Data type of activation", type(activation))
         if self.activation_type == "sigmoid":
             # return activation * (1 - activation)
             return utils.sigmoid_grad(activation)
@@ -158,6 +196,15 @@ class Layer:
         self.delta = np.array([self.biases.shape])
 
     def forward(self, x):
+        print("Shapes in layer forward", self.weights.shape, x.shape, self.biases.shape)
+        # X is column vector, for 1st layer (layer_size,784) dot(784, batch_size) = (layer_size, batch_size)+ (layer_size, 1) - last term will be broadcasted
+        # so output will be (layer_size, batch_size), which is 16 columns vectors of size 128 for each neuron of the layer
+        # its size will not change due to activation function which will be broadcasted element wise
+        # second and next layers will be (weights of (current_layer_size, layer_size))(layer_size, batch_size)= (current_layer_size, batch_size) + (current_layer_size, 1) - last term will be broadcasted
+        # so output will be (current_layer_size, batch_size) which is 16 columns vectors of size current_layer_size which will be 128,16,32, and so on.
+        # In the end we will then get (10, batch_size) where 10 = output_size = size of the output layer
+        # Means 16 column vectors of size 10
+
         self.z = np.dot(self.weights, x) + self.biases
         if self.activation_type == "sigmoid":
             self.activations = self.sigmoid(self.z)
@@ -167,8 +214,11 @@ class Layer:
             raise ValueError("Activation type not supported")
 
     def backward(self, lr):
+        # Update the weights and biases for the batch size
+        # mean = np.mean(x, axis=1, keepdims=True)
         self.weights = self.weights - lr * self.weights_grad
         self.biases = self.biases - lr * self.bias_grad
+        print("Weights, Bias shape in layer backward", self.weights.shape, self.biases.shape)
 
     # activation - sigmoid function, since our outputs are between 0 and 1
     def sigmoid(self, x):
@@ -239,7 +289,7 @@ def main():
         args.test,
     )
 
-    net.develop(args.epochs)
+    net.act(args.epochs)
 
 
 def list_int(values):

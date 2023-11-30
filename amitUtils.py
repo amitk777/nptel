@@ -13,11 +13,14 @@ def load_fmnist_data(type):
     else:
         raise ValueError("Type not supported")
 
+    # get only one row from the dataframe
+    # df = df.sample(2)
+
     y = df["label"]
     x = df.drop("label", axis=1)
 
-    x = x.to_numpy().T
-    y = one_hot_encoding(y.to_numpy()).T
+    x = x.to_numpy()
+    y = one_hot_encoding(y.to_numpy())
     return x, y
 
 
