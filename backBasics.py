@@ -51,6 +51,10 @@ class Network:
             l = Layer(wt, bias, self.activation_type)
             self.layers.append(l)
             print("Number of layers created", len(self.layers))
+
+        # For the last layer set the activation as softmax, if the loss function is ce - cross entropy
+        if self.loss == "ce":
+            self.layers[-1].activation_type = "softmax"
         # Construct weight matrices and bias for each layer starting backward
 
     def forward(self, x):
@@ -67,11 +71,12 @@ class Network:
 
     def activation(self, x):
         # Sigmoid activation
-        return 1 / (1 + np.exp(-x))
+        return 1.0 / (1.0 + np.exp(-x))
 
     # We will write three methods, develop, train and test
-    def act(self, epochs):
-        x, y = utils.load_fmnist_data("dev")
+    def act(self, epochs, dataset):
+        # x, y = utils.load_fmnist_data("dev")
+        x, y = utils.load_fmnist_data(dataset)
         print("Pre Batch shape", x.shape, y.shape)
         # X Shape (N, 784) Y Shape (N, 10)
         # N = 100,for development, 100 rows and 784 columns, X is collection of row vectors of 28*28 = 784
@@ -140,6 +145,7 @@ class Network:
                     self.layers[i + 1].delta.shape,
                     self.getActivationGrad(self.layers[i].z).shape,
                 )
+                # weights shape ((30,10)) delta shape ((10,100)) activation grad shape ((30,100))
 
             self.layers[i].bias_grad = self.layers[i].delta
 
@@ -152,7 +158,7 @@ class Network:
                 self.layers[i].weights_grad = np.dot(self.layers[i].delta, self.layers[i - 1].activations.T)
                 print("Inside weights grad ", self.layers[i].delta.shape, self.layers[i - 1].activations.T.shape)
 
-            print("Weights grad", self.layers[i].weights_grad.shape)
+            print("Weights grad shape", self.layers[i].weights_grad.shape)
             print("Previous Layer's Activations shape", self.layers[i - 1].activations.T.shape)
 
             # Update the weights and biases for each layer
@@ -208,29 +214,26 @@ class Layer:
         self.z = np.dot(self.weights, x) + self.biases
         if self.activation_type == "sigmoid":
             self.activations = self.sigmoid(self.z)
-            return self.activations
+        elif self.activation_type == "softmax":
+            self.activations = utils.softmax(self.z)
         else:
             # throw value exception if the activation type is not supported
             raise ValueError("Activation type not supported")
+        return self.activations
 
     def backward(self, lr):
         # Update the weights and biases for the batch size
         # mean = np.mean(x, axis=1, keepdims=True)
         self.weights = self.weights - lr * self.weights_grad
         self.biases = self.biases - lr * self.bias_grad
+        # Mean to reduce dimensions
+        self.biases = np.mean(self.biases, axis=1, keepdims=True)
         print("Weights, Bias shape in layer backward", self.weights.shape, self.biases.shape)
 
     # activation - sigmoid function, since our outputs are between 0 and 1
     def sigmoid(self, x):
         # x = np.clip(x, -500, 500)  # Clipping values to prevent overflow
-        return 1 / (1 + np.exp(-x))
-
-    # as per the book
-    def error(self, x, y):
-        return np.mean((y - x) ** 2)
-
-
-# Use argparse module to parse the arguments in the main method.
+        return 1.0 / (1.0 + np.exp(-x))
 
 
 def main():
@@ -289,7 +292,13 @@ def main():
         args.test,
     )
 
-    net.act(args.epochs)
+    net.act(args.epochs, "test")
+
+    # Accuracy
+    x, y = utils.load_fmnist_data("test")  # utils.load_data("dev")
+    output = net.forward(x.T)
+    accuracy = np.mean(np.argmax(output, axis=0) == np.argmax(y.T, axis=0))
+    print("Accuracy", accuracy)
 
 
 def list_int(values):
