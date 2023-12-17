@@ -22,3 +22,6 @@ test.py
 data.py
 __pycache__/amitUtils.cpython-311.pyc
 .tmux.conf
+__pycache__/bb.cpython-311.pyc
+.ipynb_checkpoints/bb-checkpoint.py
+.ipynb_checkpoints/plot-checkpoint.ipynb
